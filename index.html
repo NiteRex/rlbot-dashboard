@@ -1,0 +1,914 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RLBot Training Progress</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='%2360a5fa'/%3E%3Ccircle cx='16' cy='16' r='6' fill='%230b1220'/%3E%3C/svg%3E">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#0b1220; --panel:#111a2e; --panel2:#16213a; --border:#22304f; --text:#e6ebf5; --muted:#8b97b3;
+  --accent:#60a5fa; --green:#4ade80; --amber:#fbbf24; --red:#f87171; --violet:#c084fc; --teal:#2dd4bf;
+  --grid:rgba(139,151,179,.12);
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#f4f6fb; --panel:#ffffff; --panel2:#f0f3f9; --border:#d9e0ee; --text:#14203a; --muted:#5b6782;
+    --accent:#2563eb; --green:#16a34a; --amber:#d97706; --red:#dc2626; --violet:#9333ea; --teal:#0d9488;
+    --grid:rgba(91,103,130,.15);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0b1220; --panel:#111a2e; --panel2:#16213a; --border:#22304f; --text:#e6ebf5; --muted:#8b97b3;
+  --accent:#60a5fa; --green:#4ade80; --amber:#fbbf24; --red:#f87171; --violet:#c084fc; --teal:#2dd4bf;
+  --grid:rgba(139,151,179,.12);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1180px;margin:0 auto;padding:20px 16px 40px}
+header{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px 16px}
+h1{font-size:28px;margin:0;font-weight:700;letter-spacing:-.01em}
+.sub{color:var(--muted);font-size:13px}
+.status{display:inline-flex;align-items:center;gap:8px;padding:4px 12px;border-radius:999px;background:var(--panel);border:1px solid var(--border);font-size:13px;font-weight:600}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--muted)}
+.dot.ok{background:var(--green);box-shadow:0 0 0 3px color-mix(in srgb,var(--green) 25%,transparent)}
+.dot.warn{background:var(--amber)} .dot.bad{background:var(--red)}
+.banner{margin:16px 0;padding:14px 18px;border-radius:12px;background:var(--panel);border:1px solid var(--border);display:flex;flex-wrap:wrap;gap:6px 22px;font-size:18px;font-weight:600}
+.banner span.sep{color:var(--muted);font-weight:400}
+nav{display:flex;gap:4px;border-bottom:1px solid var(--border);margin:8px 0 18px;overflow-x:auto;scrollbar-width:none}
+nav button{background:none;border:0;color:var(--muted);font:inherit;font-weight:600;padding:10px 14px;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
+nav button.active{color:var(--text);border-bottom-color:var(--accent)}
+nav button:hover{color:var(--text)}
+.tab{display:none}.tab.active{display:block}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:18px}
+.tile{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:12px 14px}
+.tile .k{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+.tile .v{font-size:24px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums}
+.tile .h{color:var(--muted);font-size:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:14px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px 16px;min-width:0}
+.card h3{margin:0;font-size:15px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.card h3 .val{font-size:22px;font-variant-numeric:tabular-nums}
+.card .desc{color:var(--muted);font-size:12px;margin:2px 0 8px}
+.chart{position:relative;height:200px}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px;color:var(--muted);font-size:13px}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.seg button{background:var(--panel);color:var(--muted);border:0;padding:6px 12px;font:inherit;cursor:pointer}
+.seg button.on{background:var(--panel2);color:var(--text);font-weight:600}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--border);font-variant-numeric:tabular-nums}
+th{color:var(--muted);font-weight:600}
+.log{font:12px/1.5 ui-monospace,Consolas,monospace;background:var(--panel2);border-radius:8px;padding:10px 12px;overflow-x:auto;white-space:pre;max-height:420px;overflow-y:auto}
+.hist h4{margin:14px 0 4px;font-size:14px;color:var(--accent)}
+.hist p{margin:0 0 4px;color:var(--text)}
+.note{color:var(--muted);font-size:12px;margin-top:10px}
+.pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;background:var(--panel2);border:1px solid var(--border)}
+.bar{height:8px;background:var(--panel2);border-radius:4px;overflow:hidden;margin-top:6px}
+.bar>i{display:block;height:100%;background:var(--accent)}
+#err{display:none;margin:16px 0;padding:12px 16px;border-radius:10px;border:1px solid var(--red);color:var(--red)}
+.theme{background:none;border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:4px 10px;cursor:pointer;font:inherit;font-size:12px}
+
+/* highlight replay */
+.hl-top{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between;margin-bottom:10px}
+.hl-top select{background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 8px;font:inherit;max-width:100%}
+.hl-board{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;margin:4px 0 10px}
+.hl-team{font-weight:700;font-size:15px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hl-team.blue{color:#3b82f6}.hl-team.orange{color:#f97316;text-align:right}
+.hl-mid{text-align:center;font-variant-numeric:tabular-nums}
+.hl-mid .sc{font-size:30px;font-weight:800;letter-spacing:.02em}
+.hl-mid .clk{color:var(--muted);font-size:13px}
+.hl-canvas-wrap{position:relative;border-radius:10px;overflow:hidden;border:1px solid var(--border)}
+#hlCanvas{display:block;width:100%}
+.hl-flash{position:absolute;left:50%;top:12%;transform:translateX(-50%);padding:4px 14px;border-radius:999px;font-weight:800;font-size:18px;background:var(--panel);border:1px solid var(--border);opacity:0;transition:opacity .25s;pointer-events:none}
+.hl-ctrls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
+.hl-ctrls .btn{background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 12px;font:inherit;font-weight:600;cursor:pointer}
+.hl-ctrls .btn.on{border-color:var(--accent);color:var(--accent)}
+.hl-scrub{position:relative;flex:1 1 220px;min-width:160px;height:28px}
+.hl-scrub input{position:absolute;inset:0;width:100%;margin:0;accent-color:var(--accent)}
+.hl-mark{position:absolute;top:0;width:3px;height:8px;border-radius:2px;transform:translateX(-1px);pointer-events:none}
+.hl-time{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums;min-width:88px;text-align:right}
+.hl-goals{list-style:none;margin:0;padding:0}
+.hl-goals li{padding:7px 4px;border-bottom:1px solid var(--border);cursor:pointer}
+.hl-goals li:hover{background:var(--panel2)}
+.hl-goals .who{font-weight:700}
+.hl-goals .n{color:var(--muted);font-size:12px}
+.hl-tips{margin:0;padding-left:18px}
+.hl-report{white-space:pre;overflow:auto;font:12px/1.45 ui-monospace,Consolas,monospace;background:var(--panel2);padding:10px;border-radius:8px;max-height:420px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Training progress</h1>
+      <div class="sub">Rocket League 1v1 bot · self-play PPO on RocketSim · page refreshes every minute</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <span class="status"><span id="stDot" class="dot"></span><span id="stText">Loading…</span></span>
+      <button class="theme" id="themeBtn" title="Toggle light/dark">◐</button>
+    </div>
+  </header>
+
+  <div id="err"></div>
+  <div class="banner" id="banner">Loading…</div>
+
+  <nav id="tabs">
+    <button data-tab="overview" class="active">Overview</button>
+    <button data-tab="highlight">Highlight</button>
+    <button data-tab="play">How it plays</button>
+    <button data-tab="tests">Tests</button>
+    <button data-tab="kickoffs">Kickoffs</button>
+    <button data-tab="learning">Learning health</button>
+    <button data-tab="rewards">Rewards &amp; history</button>
+    <button data-tab="system">System</button>
+  </nav>
+
+  <div class="controls">
+    Range
+    <div class="seg" id="range">
+      <button data-r="all" class="on">Whole run</button>
+      <button data-r="recent">Last ~35 min</button>
+    </div>
+    <span id="updated"></span>
+  </div>
+
+  <!-- OVERVIEW -->
+  <section class="tab active" id="tab-overview">
+    <div class="tiles" id="ovTiles"></div>
+    <div class="card" id="apCard" style="display:none;margin-bottom:14px"><h3>Autopilot (Claude's check-ins)</h3>
+      <div class="desc">While you're away, Claude checks the bot about once an hour and notes what it saw and decided. Newest first.</div>
+      <div id="apSummary" style="white-space:pre-wrap;margin-bottom:8px"></div>
+      <div id="apList" style="max-height:340px;overflow:auto"></div></div>
+    <div class="grid">
+      <div class="card"><h3>Goal rate <span class="val" id="v-goals" style="color:var(--amber)"></span></h3>
+        <div class="desc">Goals per simulated match minute, both cars. Includes accidental goals (random play ≈ 3.7).</div>
+        <div class="chart"><canvas id="c-goals"></canvas></div></div>
+      <div class="card"><h3>Randomness (policy entropy) <span class="val" id="v-ent" style="color:var(--violet)"></span></h3>
+        <div class="desc">Lower = more decisive. 4.50 = completely random over 90 actions. A steady climb is a warning sign.</div>
+        <div class="chart"><canvas id="c-ent"></canvas></div></div>
+      <div class="card"><h3>Ball contact rate <span class="val" id="v-touch" style="color:var(--green)"></span></h3>
+        <div class="desc">Touch-steps per simulated match minute. More is not always better (ball hugging).</div>
+        <div class="chart"><canvas id="c-touch"></canvas></div></div>
+      <div class="card"><h3>Training speed <span class="val" id="v-sps" style="color:var(--accent)"></span></h3>
+        <div class="desc">Overall learning steps per second (drops while games run on the PC).</div>
+        <div class="chart"><canvas id="c-sps"></canvas></div></div>
+    </div>
+    <div class="note">Dashed vertical lines mark reward changes (see “Rewards &amp; history”). Bright lines: smoothed · faint lines: raw.</div>
+  </section>
+
+  <!-- HIGHLIGHT -->
+  <section class="tab" id="tab-highlight">
+    <div class="card" id="hlEmpty" style="display:none">No recorded matches yet. Play one with <b>play_vs_bot.bat</b>; a full simulated match is also added after every automatic test.</div>
+    <div id="hlBody">
+      <div class="card">
+        <div class="hl-top">
+          <div><h3 id="hlTitle" style="display:block">Highlight</h3><div class="desc" id="hlSub"></div></div>
+          <select id="hlPick" aria-label="Choose a match"></select>
+        </div>
+        <div class="hl-board">
+          <div class="hl-team blue" id="hlBlue"></div>
+          <div class="hl-mid"><div class="sc" id="hlScore">0 – 0</div><div class="clk" id="hlClock">5:00</div></div>
+          <div class="hl-team orange" id="hlOrange"></div>
+        </div>
+        <div class="hl-canvas-wrap"><canvas id="hlCanvas"></canvas><div class="hl-flash" id="hlFlash"></div></div>
+        <div class="hl-ctrls">
+          <button class="btn" id="hlPlay">▶ Play</button>
+          <div class="seg" id="hlSpeed"><button data-s="1" class="on">1×</button><button data-s="2">2×</button><button data-s="4">4×</button></div>
+          <button class="btn" id="hlGoalsOnly" title="Play only the build-up to each goal">Goals only</button>
+          <div class="hl-scrub"><input type="range" id="hlScrub" min="0" max="1" step="0.05" value="0" aria-label="Match timeline"><div id="hlMarks"></div></div>
+          <span class="hl-time" id="hlTime"></span>
+        </div>
+        <div class="desc" style="margin-top:8px">Top-down replay drawn from the recorded positions (blue defends the left goal). Cars glow when airborne; the bar under each car is its boost. Ticks on the timeline are goals.</div>
+      </div>
+      <div class="grid" style="margin-top:14px">
+        <div class="card"><h3>Goals / kickoffs</h3><div class="desc">Click one to watch it.</div><ul class="hl-goals" id="hlGoals"></ul></div>
+        <div class="card"><h3>Match stats</h3><table id="hlStats"></table></div>
+      </div>
+      <div class="card" style="margin-top:14px"><h3>What the analysis says</h3><ul class="hl-tips" id="hlTips"></ul>
+        <details style="margin-top:8px"><summary style="cursor:pointer;color:var(--muted)">Full analysis</summary><div class="hl-report" id="hlReport"></div></details>
+      </div>
+    </div>
+  </section>
+
+  <!-- PLAY -->
+  <section class="tab" id="tab-play">
+    <div class="grid">
+      <div class="card"><h3>Ball speed <span class="val" id="v-bspd" style="color:var(--teal)"></span></h3>
+        <div class="desc">Average ball speed (uu/s). Rises as hits get harder.</div><div class="chart"><canvas id="c-bspd"></canvas></div></div>
+      <div class="card"><h3>Car speed <span class="val" id="v-cspd" style="color:var(--accent)"></span></h3>
+        <div class="desc">Average car speed (uu/s). Supersonic is 2200.</div><div class="chart"><canvas id="c-cspd"></canvas></div></div>
+      <div class="card"><h3>Time in the air <span class="val" id="v-air" style="color:var(--violet)"></span></h3>
+        <div class="desc">Fraction of decisions taken while airborne.</div><div class="chart"><canvas id="c-air"></canvas></div></div>
+      <div class="card"><h3>Ball height <span class="val" id="v-bh" style="color:var(--amber)"></span></h3>
+        <div class="desc">Average ball height (uu). Resting ball ≈ 93.</div><div class="chart"><canvas id="c-bh"></canvas></div></div>
+      <div class="card"><h3>Car height <span class="val" id="v-ch" style="color:var(--green)"></span></h3>
+        <div class="desc">Average car height (uu). On the ground ≈ 17.</div><div class="chart"><canvas id="c-ch"></canvas></div></div>
+      <div class="card"><h3>Boost held <span class="val" id="v-boost" style="color:var(--red)"></span></h3>
+        <div class="desc">Average boost amount (0–1).</div><div class="chart"><canvas id="c-boost"></canvas></div></div>
+    </div>
+  </section>
+
+  <!-- KICKOFFS -->
+  <section class="tab" id="tab-kickoffs">
+    <div class="tiles" id="kickTiles"></div>
+    <div class="grid">
+      <div class="card"><h3>Kickoff drill: time to first touch <span class="val" id="v-drill-t" style="color:var(--accent)"></span></h3>
+        <div class="desc">Training drill: a share of practice episodes are a pure race to the ball that ends just after the first touch; the car that gets there first is paid for every tenth of a second under 3 s. Average seconds to the first touch per training iteration (lower is better). Drill started at 1.20B.</div>
+        <div class="chart"><canvas id="c-drill-t"></canvas></div></div>
+      <div class="card"><h3>Kickoffs won <span class="val" id="v-kick" style="color:var(--green)"></span></h3>
+        <div class="desc" id="kickDesc">Share of kickoffs where squarumlite touches the ball first. 100 simulated kickoffs per test, standard spots, sides swapped. Opponent: MarshBot up to 1.15B, then the version ~100M steps earlier.</div>
+        <div class="chart"><canvas id="c-kick"></canvas></div></div>
+      <div class="card"><h3>Kickoff time to the ball <span class="val" id="v-kick-t" style="color:var(--teal)"></span></h3>
+        <div class="desc">Seconds from kickoff until the car reaches the ball (lower is faster). Teal: squarumlite. Grey: its opponent (MarshBot up to 1.15B, then the version ~100M steps earlier). A great kickoff is ~2.2–2.3 s.</div>
+        <div class="chart"><canvas id="c-kick-t"></canvas></div></div>
+    </div>
+    <div class="card" style="margin-top:14px"><h3>Watch kickoffs</h3>
+      <div class="desc">After every test, the newest bot plays 10 recorded kickoffs against the version ~100M steps earlier. Watch opens them in the replay player (Highlight tab).</div>
+      <div id="reelList"></div></div>
+  </section>
+
+  <!-- TESTS -->
+  <section class="tab" id="tab-tests">
+    <div class="tiles" id="testTiles"></div>
+    <div class="grid">
+      <div class="card"><h3>Win rate vs MarshBot <span class="val" id="v-wr-marsh" style="color:var(--amber)"></span></h3>
+        <div class="desc">Red: the friend's new MarshBot 879M (tested from 1.3B, also a training opponent). Amber: the old 95M MarshBot (retired at 1.15B). 200 simulated games per test, sides swapped, first goal wins (draws excluded).</div>
+        <div class="chart"><canvas id="c-wr-marsh"></canvas></div></div>
+      <div class="card"><h3>Win rate vs old versions <span class="val" id="v-wr-old" style="color:var(--violet)"></span></h3>
+        <div class="desc">Purple: vs the oldest kept version (long-term progress). Teal: vs the version ~100M steps earlier (recent progress). 50% = no better.</div>
+        <div class="chart"><canvas id="c-wr-old"></canvas></div></div>
+    </div>
+    <div class="card" style="margin-top:14px"><h3>Latest tests</h3><div class="desc">A new checkpoint is tested automatically every ~50M steps in RocketSim (low CPU priority, so training comes first).</div><table id="testTable"></table></div>
+    <div class="card" style="margin-top:14px"><h3>Past-version opponents (training)</h3><div class="desc" id="poolDesc"></div><div id="poolList" class="log" style="white-space:normal"></div></div>
+  </section>
+
+  <!-- LEARNING -->
+  <section class="tab" id="tab-learning">
+    <div class="grid">
+      <div class="card"><h3>Policy entropy <span class="val" id="v-ent2" style="color:var(--violet)"></span></h3>
+        <div class="desc">Randomness of the policy. Max 4.50.</div><div class="chart"><canvas id="c-ent2"></canvas></div></div>
+      <div class="card"><h3>Policy reward <span class="val" id="v-prew" style="color:var(--amber)"></span></h3>
+        <div class="desc">Average episode reward. A training signal, not skill; jumps whenever weights change.</div><div class="chart"><canvas id="c-prew"></canvas></div></div>
+      <div class="card"><h3>Value function loss <span class="val" id="v-vfl" style="color:var(--teal)"></span></h3>
+        <div class="desc">How well the critic predicts returns. Spikes after reward changes are normal.</div><div class="chart"><canvas id="c-vfl"></canvas></div></div>
+      <div class="card"><h3>KL divergence <span class="val" id="v-kl" style="color:var(--accent)"></span></h3>
+        <div class="desc">How much the policy changes per update. Should stay small (≈0.001–0.01).</div><div class="chart"><canvas id="c-kl"></canvas></div></div>
+      <div class="card"><h3>Clip fraction <span class="val" id="v-clip" style="color:var(--green)"></span></h3>
+        <div class="desc">Share of samples hitting the PPO clip. Healthy ≈ 0.01–0.1.</div><div class="chart"><canvas id="c-clip"></canvas></div></div>
+      <div class="card"><h3>Collection speed <span class="val" id="v-csps" style="color:var(--red)"></span></h3>
+        <div class="desc">Steps/s gathered by the 48 simulation workers (excludes learning time).</div><div class="chart"><canvas id="c-csps"></canvas></div></div>
+    </div>
+  </section>
+
+  <!-- REWARDS -->
+  <section class="tab" id="tab-rewards">
+    <div class="grid">
+      <div class="card"><h3>Current reward weights</h3><div class="desc">What the bot is paid for right now (relative sizes matter).</div><table id="wTable"></table></div>
+      <div class="card"><h3>Curriculum (spawn mix)</h3><div class="desc" id="curDesc"></div><table id="curTable"></table></div>
+    </div>
+    <div class="card" style="margin-top:14px"><h3>Planned changes to 1B steps</h3><div class="desc">Each switches on automatically at its step count, only if the latest test shows the previous change did not make the bot worse (and training restarts itself). ETA assumes the current speed.</div><table id="schedTable"></table></div>
+    <div class="card hist" style="margin-top:14px"><h3>Reward-change history</h3><div id="hist"></div></div>
+  </section>
+
+  <!-- SYSTEM -->
+  <section class="tab" id="tab-system">
+    <div class="grid">
+      <div class="card"><h3>Setup</h3><table id="setupTable"></table></div>
+      <div class="card"><h3>PPO settings</h3><table id="ppoTable"></table></div>
+      <div class="card"><h3>Checkpoints (newest 10 kept)</h3><table id="ckTable"></table><div class="note" id="archNote"></div></div>
+    </div>
+    <div class="card" style="margin-top:14px"><h3>Watchdog log</h3><div class="desc">Starts, stops and automatic restarts.</div><div class="log" id="wdLog"></div></div>
+  </section>
+
+  <div class="note" style="margin-top:22px">Published automatically from the training PC every ~5 minutes while it is on. If the status says “stale”, the PC is off, asleep, or training was stopped.</div>
+</div>
+
+<script>
+(function(){
+  // ---------- theme ----------
+  const root = document.documentElement;
+  try{ const t = localStorage.getItem('theme'); if(t) root.setAttribute('data-theme', t); }catch(e){}
+  document.getElementById('themeBtn').onclick = () => {
+    const dark = getComputedStyle(root).getPropertyValue('--bg').trim() === '#0b1220';
+    const next = dark ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try{ localStorage.setItem('theme', next); }catch(e){}
+    if (DATA) render();
+  };
+
+  // ---------- tabs / range ----------
+  let tab = 'overview', range = 'all', DATA = null;
+  try{ tab = localStorage.getItem('tab') || 'overview'; range = localStorage.getItem('range') || 'all'; }catch(e){}
+  function setTab(t){
+    tab = t;
+    document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === t));
+    document.querySelectorAll('.tab').forEach(s => s.classList.toggle('active', s.id === 'tab-' + t));
+    try{ localStorage.setItem('tab', t); }catch(e){}
+    if (DATA) render();
+  }
+  document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => setTab(b.dataset.tab));
+  document.querySelectorAll('#range button').forEach(b => b.onclick = () => {
+    range = b.dataset.r;
+    document.querySelectorAll('#range button').forEach(x => x.classList.toggle('on', x === b));
+    try{ localStorage.setItem('range', range); }catch(e){}
+    if (DATA) render();
+  });
+  document.querySelectorAll('#range button').forEach(x => x.classList.toggle('on', x.dataset.r === range));
+  setTab(tab);
+
+  // ---------- helpers ----------
+  const css = v => getComputedStyle(root).getPropertyValue(v).trim();
+  const fmtInt = n => n == null ? '–' : Math.round(n).toLocaleString('en-US');
+  const fmtM = n => n == null ? '–' : (n >= 1e9 ? (n/1e9).toFixed(2) + 'B' : (n/1e6).toFixed(1) + 'M');
+  const fx = (n, d) => n == null ? '–' : Number(n).toFixed(d);
+  function ago(sec){
+    if (sec < 90) return Math.round(sec) + ' s ago';
+    if (sec < 5400) return Math.round(sec/60) + ' min ago';
+    if (sec < 172800) return (sec/3600).toFixed(1) + ' h ago';
+    return Math.round(sec/86400) + ' days ago';
+  }
+  function smooth(vals, w){
+    const out = []; let sum = 0, n = 0, q = [];
+    for (const v of vals){
+      if (v == null){ out.push(null); continue; }
+      q.push(v); sum += v; n++;
+      if (q.length > w){ sum -= q.shift(); n--; }
+      out.push(sum / n);
+    }
+    return out;
+  }
+
+  const charts = {};
+  const markerPlugin = {
+    id: 'markers',
+    afterDatasetsDraw(chart){
+      const m = chart.options.plugins.markers;
+      if (!m || !m.list) return;
+      const {ctx, chartArea:a, scales:{x}} = chart;
+      ctx.save();
+      ctx.setLineDash([4,4]); ctx.strokeStyle = m.color; ctx.fillStyle = m.color; ctx.font = '10px system-ui';
+      let lastPx = -1e9, row = 0;
+      for (const mk of m.list){
+        if (mk.ts < x.min || mk.ts > x.max) continue;
+        const px = x.getPixelForValue(mk.ts);
+        row = (px - lastPx < 40) ? row + 1 : 0; lastPx = px;
+        ctx.beginPath(); ctx.moveTo(px, a.top); ctx.lineTo(px, a.bottom); ctx.stroke();
+        ctx.fillText(mk.label, px + 3, a.top + 10 + row * 11);
+      }
+      ctx.restore();
+    }
+  };
+
+  function lineChart(id, rows, key, color, opts = {}){
+    const el = document.getElementById(id);
+    if (!el) return;
+    const pts = rows.filter(r => r[key] != null);
+    const xs = pts.map(r => r.ts), ys = pts.map(r => r[key] * (opts.scale || 1));
+    const sm = smooth(ys, opts.win || (range === 'all' ? 15 : 8));
+    const raw = xs.map((x,i) => ({x, y: ys[i]})), smp = xs.map((x,i) => ({x, y: sm[i]}));
+    const grid = css('--grid'), muted = css('--muted');
+    const cfg = {
+      type: 'line',
+      data: { datasets: [
+        { data: raw, borderColor: color + '55', borderWidth: 1, pointRadius: 0, tension: 0 },
+        { data: smp, borderColor: color, borderWidth: 2, pointRadius: 0, tension: .25 },
+      ]},
+      options: {
+        animation: false, responsive: true, maintainAspectRatio: false, parsing: false, normalized: true,
+        interaction: { mode: 'nearest', axis: 'x', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: {
+            title: it => fmtM(it[0].parsed.x) + ' steps',
+            label: it => (it.datasetIndex ? 'smoothed ' : 'raw ') + Number(it.parsed.y).toPrecision(4),
+          }},
+          markers: { list: DATA.markers, color: muted },
+        },
+        scales: {
+          x: { type: 'linear', min: xs[0], max: xs[xs.length-1], grid: { color: grid }, ticks: { color: muted, maxTicksLimit: 6, callback: v => fmtM(v) } },
+          y: { grid: { color: grid }, ticks: { color: muted, maxTicksLimit: 5 }, suggestedMin: opts.min, suggestedMax: opts.max },
+        },
+      },
+      plugins: [markerPlugin],
+    };
+    if (charts[id]) charts[id].destroy();
+    charts[id] = new Chart(el, cfg);
+  }
+  function winChart(id, series){
+    const el = document.getElementById(id); if (!el) return;
+    const grid = css('--grid'), muted = css('--muted');
+    const all = series.flatMap(([rows]) => rows.map(r => r.ts));
+    const datasets = series.map(([rows, color]) => ({
+      data: rows.map(r => ({x: r.ts, y: r.win_rate * 100})), borderColor: color, backgroundColor: color,
+      borderWidth: 2, pointRadius: 3, tension: .2 }));
+    datasets.push({ data: all.length ? [{x: Math.min(...all), y: 50}, {x: Math.max(...all), y: 50}] : [],
+      borderColor: muted, borderDash: [4,4], borderWidth: 1, pointRadius: 0 });
+    if (charts[id]) charts[id].destroy();
+    charts[id] = new Chart(el, { type: 'line', data: { datasets },
+      options: { animation: false, responsive: true, maintainAspectRatio: false, parsing: false,
+        plugins: { legend: { display: false }, markers: { list: DATA.markers, color: muted },
+          tooltip: { callbacks: { title: it => fmtM(it[0].parsed.x) + ' steps', label: it => Math.round(it.parsed.y) + '% wins' } } },
+        scales: { x: { type: 'linear', grid: { color: grid }, ticks: { color: muted, maxTicksLimit: 6, callback: v => fmtM(v) } },
+                  y: { min: 0, max: 100, grid: { color: grid }, ticks: { color: muted, callback: v => v + '%' } } } },
+      plugins: [markerPlugin] });
+  }
+  const setText = (id, t) => { const e = document.getElementById(id); if (e) e.textContent = t; };
+  function table(id, rows, head){
+    const t = document.getElementById(id); if (!t) return;
+    t.innerHTML = (head ? '<tr>' + head.map(h => `<th>${h}</th>`).join('') + '</tr>' : '') +
+      rows.map(r => '<tr>' + r.map(c => `<td>${c}</td>`).join('') + '</tr>').join('');
+  }
+
+  // ---------- render ----------
+
+  // ---------- highlight replay ----------
+  const HL = (() => {
+    const FX = 4096, FY = 5120, GW = 893, GD = 880, CH = 1152, BLUE = '#3b82f6', ORANGE = '#f97316';
+    const el = id => document.getElementById(id);
+    const cv = el('hlCanvas'), ctx = cv.getContext('2d');
+    let list = null, cur = null, curId = null, userPicked = false, listKey = '';
+    let pt = 0, playing = false, speed = 1, goalsOnly = false, clipIdx = 0, lastTs = null, W = 0, H = 0, sc = 1;
+    let flashUntil = 0, lastGoalSeen = -1;
+
+    const P = (x, y) => [(y + FY + GD) * sc, (FX - x) * sc];
+    const kindLabel = k => k === 'you' ? 'Real game vs you' : k === 'sim' ? 'Simulated full match' : k === 'kickoffs' ? 'Kickoff reel' : 'Real game (RLBot)';
+    const mmss = v => { if (v == null) return ''; const ot = v < 0; v = Math.abs(v); const m = Math.floor(v / 60), s = Math.floor(v % 60);
+                        return (ot ? '+' : '') + m + ':' + String(s).padStart(2, '0') + (ot ? ' OT' : ''); };
+    const esc = t => String(t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+    function resize(){
+      const w = cv.parentElement.clientWidth;
+      if (!w) return;
+      const dpr = window.devicePixelRatio || 1;
+      W = w; H = Math.round(w * (2 * FX) / (2 * FY + 2 * GD)); sc = W / (2 * FY + 2 * GD);
+      cv.style.height = H + 'px'; cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      draw();
+    }
+    window.addEventListener('resize', () => { if (tab === 'highlight') resize(); });
+
+    function field(){
+      ctx.fillStyle = css('--bg'); ctx.fillRect(0, 0, W, H);
+      const pts = [[-FX+CH,-FY],[FX-CH,-FY],[FX,-FY+CH],[FX,FY-CH],[FX-CH,FY],[-FX+CH,FY],[-FX,FY-CH],[-FX,-FY+CH]];
+      ctx.beginPath(); pts.forEach((p, i) => { const [a, b] = P(p[0], p[1]); i ? ctx.lineTo(a, b) : ctx.moveTo(a, b); }); ctx.closePath();
+      ctx.fillStyle = css('--panel2'); ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = css('--border'); ctx.stroke();
+      [[-1, BLUE], [1, ORANGE]].forEach(([s, col]) => {
+        const [x0, y0] = P(GW, s * FY), [x1, y1] = P(-GW, s * (FY + GD));
+        ctx.fillStyle = col + '30'; ctx.fillRect(Math.min(x0, x1), Math.min(y0, y1), Math.abs(x1 - x0), Math.abs(y1 - y0));
+        ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.strokeRect(Math.min(x0, x1), Math.min(y0, y1), Math.abs(x1 - x0), Math.abs(y1 - y0));
+      });
+      ctx.strokeStyle = css('--border'); ctx.lineWidth = 1.5;
+      let [a, b] = P(FX, 0), [c, d] = P(-FX, 0); ctx.beginPath(); ctx.moveTo(a, b); ctx.lineTo(c, d); ctx.stroke();
+      [a, b] = P(0, 0); ctx.beginPath(); ctx.arc(a, b, 1000 * sc, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = css('--amber') + '55';
+      [[3072,4096],[-3072,4096],[3072,-4096],[-3072,-4096],[3584,0],[-3584,0]].forEach(([x, y]) => {
+        const [px, py] = P(x, y); ctx.beginPath(); ctx.arc(px, py, Math.max(2.5, 160 * sc), 0, Math.PI * 2); ctx.fill(); });
+    }
+
+    function idxAt(t){
+      const a = cur.pt; let lo = 0, hi = a.length - 1;
+      if (t <= a[0]) return 0;
+      while (lo < hi){ const m = (lo + hi + 1) >> 1; if (a[m] <= t) lo = m; else hi = m - 1; }
+      return lo;
+    }
+    const lerp = (a, b, f) => a + (b - a) * f;
+    function angLerp(a, b, f){ let d = b - a; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return a + d * f; }
+    function stateAt(t){
+      const k = idxAt(t), k2 = Math.min(k + 1, cur.pt.length - 1);
+      let f = k2 > k ? (t - cur.pt[k]) / Math.max(1e-6, cur.pt[k2] - cur.pt[k]) : 0;
+      f = Math.max(0, Math.min(1, f));
+      if (cur.kick[k2] && k2 !== k) f = 0;                  // never slide across a kickoff reset
+      const b0 = cur.ball[k], b1 = cur.ball[k2];
+      return { k, ball: [lerp(b0[0], b1[0], f), lerp(b0[1], b1[1], f), lerp(b0[2], b1[2], f)],
+               cars: cur.cars[k].map((c, i) => { const e = cur.cars[k2][i];
+                 return { x: lerp(c[0], e[0], f), y: lerp(c[1], e[1], f), z: lerp(c[2], e[2], f), yaw: angLerp(c[3], e[3], f),
+                          boost: c[4], air: c[5], demo: c[6] }; }) };
+    }
+
+    function draw(){
+      if (!W) return;
+      field();
+      if (!cur || !cur.pt.length) return;
+      const s = stateAt(pt);
+      // ball trail (last ~1.2 s, broken at kickoffs)
+      const k0 = idxAt(Math.max(0, pt - 1.2));
+      ctx.strokeStyle = css('--muted'); ctx.lineWidth = 2; ctx.globalAlpha = 0.5; ctx.beginPath();
+      let started = false;
+      for (let k = k0; k <= s.k; k++){
+        if (cur.kick[k]) started = false;
+        const [x, y] = P(cur.ball[k][0], cur.ball[k][1]);
+        started ? ctx.lineTo(x, y) : ctx.moveTo(x, y); started = true;
+      }
+      if (started){ const [x, y] = P(s.ball[0], s.ball[1]); ctx.lineTo(x, y); }
+      ctx.stroke(); ctx.globalAlpha = 1;
+      // cars
+      cur.players.forEach((p, i) => {
+        const c = s.cars[i]; const col = p.team === 0 ? BLUE : ORANGE;
+        const [x, y] = P(c.x, c.y);
+        const L = Math.max(10, 118 * 2.2 * sc) * (1 + Math.min(c.z, 1500) / 3000), Wd = L * 0.7;
+        ctx.save(); ctx.translate(x, y); ctx.rotate(Math.atan2(-Math.cos(c.yaw), Math.sin(c.yaw)));
+        ctx.globalAlpha = c.demo ? 0.25 : 1;
+        if (c.air){ ctx.shadowColor = col; ctx.shadowBlur = 12; }
+        ctx.fillStyle = col; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(-L/2, -Wd/2, L, Wd, 3) : ctx.rect(-L/2, -Wd/2, L, Wd); ctx.fill();
+        ctx.shadowBlur = 0; ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.beginPath();
+        ctx.moveTo(L/2, 0); ctx.lineTo(L/2 - L*0.3, -Wd*0.3); ctx.lineTo(L/2 - L*0.3, Wd*0.3); ctx.closePath(); ctx.fill();
+        if (c.air){ ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.strokeRect(-L/2, -Wd/2, L, Wd); }
+        ctx.restore(); ctx.globalAlpha = 1;
+        // boost bar + tag
+        const bw = Math.max(18, L * 1.1), by = y + L * 0.75 + 2;
+        ctx.fillStyle = css('--border'); ctx.fillRect(x - bw/2, by, bw, 3);
+        ctx.fillStyle = css('--amber'); ctx.fillRect(x - bw/2, by, bw * Math.max(0, Math.min(100, c.boost)) / 100, 3);
+        ctx.fillStyle = css('--text'); ctx.font = '600 11px system-ui, sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText(p.is_bot ? 'BOT' : (cur.kind === 'you' ? 'YOU' : 'OPP'), x, y - L * 0.75 - 3);
+      });
+      // ball: shadow on the ground, ball drawn bigger the higher it is
+      const [bx, by] = P(s.ball[0], s.ball[1]);
+      const r = Math.max(4, 93 * 2 * sc);
+      ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.arc(bx, by, r, 0, Math.PI * 2); ctx.fill();
+      const rz = r * (1 + Math.min(s.ball[2], 2000) / 1500);
+      ctx.fillStyle = '#f8fafc'; ctx.strokeStyle = '#334155'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(bx, by - Math.min(s.ball[2], 2000) * sc * 0.15, rz, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    }
+
+    function hud(){
+      if (!cur) return;
+      const k = idxAt(pt);
+      const sc2 = [0, 0]; let latest = -1;
+      cur.goals.forEach((g, i) => { if (g.pt <= pt + 1e-6){ sc2[g.team]++; latest = i; } });
+      setText('hlScore', sc2[0] + ' – ' + sc2[1]);
+      setText('hlClock', mmss(cur.clock[k]));
+      const end = cur.pt[cur.pt.length - 1];
+      setText('hlTime', mmss(pt).replace(' OT', '') + ' / ' + mmss(end).replace(' OT', ''));
+      const sl = el('hlScrub'); if (document.activeElement !== sl) sl.value = pt;
+      if (latest !== lastGoalSeen){
+        if (latest > lastGoalSeen && playing && latest >= 0){
+          const g = cur.goals[latest]; const f = el('hlFlash');
+          f.textContent = 'GOAL! ' + g.scorer_name; f.style.color = g.team === 0 ? BLUE : ORANGE; f.style.opacity = 1;
+          flashUntil = performance.now() + 2200;
+        }
+        lastGoalSeen = latest;
+      }
+      if (flashUntil && performance.now() > flashUntil){ el('hlFlash').style.opacity = 0; flashUntil = 0; }
+    }
+
+    function clips(){ return cur.goals.map(g => [Math.max(0, g.pt - 7), g.pt + 1]); }
+    function setPlaying(v){ playing = v; el('hlPlay').textContent = v ? '❚❚ Pause' : '▶ Play'; lastTs = null; }
+
+    function frame(ts){
+      if (cur && playing){
+        const dt = lastTs == null ? 0 : Math.min(0.25, (ts - lastTs) / 1000);
+        pt += dt * speed;
+        if (goalsOnly){
+          const c = clips();
+          if (clipIdx >= c.length){ setPlaying(false); }
+          else if (pt < c[clipIdx][0]) pt = c[clipIdx][0];
+          else if (pt > c[clipIdx][1]){ clipIdx++; if (clipIdx < c.length) pt = c[clipIdx][0]; else setPlaying(false); }
+        }
+        const end = cur.pt[cur.pt.length - 1];
+        if (pt >= end){ pt = end; setPlaying(false); }
+        lastTs = ts;
+      }
+      if (tab === 'highlight' && cur){ draw(); hud(); }
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+
+    el('hlPlay').onclick = () => {
+      if (!cur) return;
+      if (!playing && pt >= cur.pt[cur.pt.length - 1] - 0.05){ pt = 0; clipIdx = 0; lastGoalSeen = -1; }
+      setPlaying(!playing);
+    };
+    document.querySelectorAll('#hlSpeed button').forEach(b => b.onclick = () => {
+      speed = +b.dataset.s; document.querySelectorAll('#hlSpeed button').forEach(x => x.classList.toggle('on', x === b)); });
+    el('hlGoalsOnly').onclick = () => {
+      goalsOnly = !goalsOnly; el('hlGoalsOnly').classList.toggle('on', goalsOnly);
+      if (goalsOnly && cur){ const c = clips(); clipIdx = c.findIndex(x => x[1] > pt); if (clipIdx < 0){ clipIdx = 0; pt = 0; } lastGoalSeen = -1; setPlaying(true); }
+    };
+    el('hlScrub').oninput = e => { pt = +e.target.value; lastGoalSeen = 99999; if (goalsOnly){ const c = clips(); clipIdx = Math.max(0, c.findIndex(x => x[1] > pt)); } };
+    el('hlScrub').onchange = () => { lastGoalSeen = 99999; };
+    el('hlPick').onchange = e => { userPicked = true; open(e.target.value); };
+
+    function panels(){
+      const m = cur, isHl = list && list.highlight === m.id;
+      const bot = m.players.find(p => p.is_bot);
+      el('hlTitle').innerHTML = (isHl ? '<span style="color:var(--amber)">★ Highlight</span> · ' : '') + esc(kindLabel(m.kind));
+      const res = m.result === 'win' ? 'won' : m.result === 'loss' ? 'lost' : 'drew';
+      const kr = (m.kickoff_results || []).filter(r => r.seconds != null);
+      if (m.kind === 'kickoffs') setText('hlSub', `${bot ? bot.name : 'squarumlite'} vs ${m.opponent}: won ${kr.filter(r => r.a_first).length} of ${(m.kickoff_results || []).length} kickoffs, average ${kr.length ? (kr.reduce((s, r) => s + r.seconds, 0) / kr.length).toFixed(2) : '–'} s to the first touch · ${new Date(m.time * 1000).toLocaleString()}`);
+      else setText('hlSub', `${bot ? bot.name.replace(' (bot)', '') : 'squarumlite'} ${res} ${m.bot_goals}–${m.opp_goals} vs ${m.kind === 'you' ? 'you' : m.opponent} · `
+        + `${new Date(m.time * 1000).toLocaleString()} · bot at ${typeof m.checkpoint === 'number' ? fmtM(m.checkpoint) + ' steps' : m.checkpoint} · ${mmss(m.live_seconds)} of play`);
+      const blue = m.players.find(p => p.team === 0), orange = m.players.find(p => p.team === 1);
+      setText('hlBlue', blue ? blue.name : 'Blue'); setText('hlOrange', orange ? orange.name : 'Orange');
+      const end = m.pt[m.pt.length - 1];
+      el('hlScrub').max = end;
+      el('hlMarks').innerHTML = m.goals.map(g => `<div class="hl-mark" style="left:${100 * g.pt / end}%;background:${g.team === 0 ? BLUE : ORANGE}"></div>`).join('');
+      el('hlGoals').innerHTML = m.goals.length ? m.goals.map((g, i) => {
+        const col = g.team === 0 ? BLUE : ORANGE;
+        const bits = [];
+        if (g.shot_speed >= 300) bits.push(`shot ${fmtInt(g.shot_speed)} uu/s`);
+        if (g.notes && g.notes.length) bits.push('bot ' + g.notes.join(', '));
+        return `<li data-i="${i}"><span class="who" style="color:${col}">${esc(g.scorer_name)}</span> scored at ${mmss(g.pt)}`
+             + (bits.length ? `<div class="n">${esc(bits.join(' · '))}</div>` : '') + '</li>'; }).join('') : '<li class="n">No goals.</li>';
+      if (m.kind === 'kickoffs'){
+        el('hlGoals').innerHTML = (m.kickoffs || []).map((k, i) => { const r = (m.kickoff_results || [])[i] || {};
+          const win = r.a_first == null ? 'nobody touched' : (r.a_first ? 'won' : 'lost');
+          return `<li data-k="${i}"><span class="who" style="color:${r.a_first ? BLUE : ORANGE}">Kickoff ${i + 1}</span> · ${win}`
+            + (r.seconds != null ? ` · first touch ${r.seconds.toFixed(2)} s` : '') + '</li>'; }).join('');
+        el('hlGoals').querySelectorAll('li[data-k]').forEach(li => li.onclick = () => {
+          const k = m.kickoffs[+li.dataset.k]; pt = Math.max(0, k.pt - 0.2); lastGoalSeen = 99999; setPlaying(true);
+          window.scrollTo({ top: el('hlCanvas').getBoundingClientRect().top + window.scrollY - 120, behavior: 'smooth' }); });
+      }
+      el('hlGoals').querySelectorAll('li[data-i]').forEach(li => li.onclick = () => {
+        const g = m.goals[+li.dataset.i]; pt = Math.max(0, g.pt - 6); lastGoalSeen = 99999;
+        if (goalsOnly) clipIdx = +li.dataset.i;
+        setPlaying(true); window.scrollTo({ top: el('hlCanvas').getBoundingClientRect().top + window.scrollY - 120, behavior: 'smooth' });
+      });
+      const ord = [blue, orange].filter(Boolean);
+      const pc = v => v == null ? '–' : Math.round(v * 100) + '%';
+      const rows = [['Goals', p => m.per[p.index].goals]];
+      if (m.has_shots){ rows.push(['Shots', p => m.per[p.index].shots], ['Saves', p => m.per[p.index].saves]); }
+      rows.push(['Touches', p => m.per[p.index].touches], ['Hard hits (≥2000 uu/s)', p => m.per[p.index].hard],
+        ['Average boost', p => Math.round(m.per[p.index].boost)], ['Time on ~0 boost', p => pc(m.per[p.index].zero)],
+        ['Time in the air', p => pc(m.per[p.index].air)], ['Goal-side of the ball', p => pc(m.per[p.index].side)],
+        ['Average speed (uu/s)', p => fmtInt(m.per[p.index].speed)], ['Kickoffs won', p => m.kickoffs.filter(k => k.first === p.index).length]);
+      if (bot) rows.push(['Near-misses (bot)', p => p.is_bot ? (m.near_misses[p.index] ?? '–') : '']);
+      table('hlStats', rows.map(([k, f]) => [k, ...ord.map(p => `<b>${f(p)}</b>`)]),
+        ['', ...ord.map(p => `<span style="color:${p.team === 0 ? BLUE : ORANGE}">${esc(p.name)}</span>`)]);
+      el('hlTips').innerHTML = (m.tips.length ? m.tips : ['Nothing stands out.']).map(t => `<li>${esc(t)}</li>`).join('');
+      el('hlReport').textContent = m.report;
+    }
+
+    async function open(id){
+      curId = id;
+      try{
+        const r = await fetch('matches/' + encodeURIComponent(id) + '.json', { cache: 'no-store' });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const m = await r.json();
+        if (curId !== id) return;
+        cur = m; pt = 0; clipIdx = 0; lastGoalSeen = -1; setPlaying(false);
+        el('hlPick').value = id;
+        panels(); resize();
+      }catch(e){ setText('hlSub', 'Could not load this match (' + e.message + ').'); }
+    }
+
+    function update(h){
+      const has = h && h.matches && h.matches.length;
+      el('hlEmpty').style.display = has ? 'none' : 'block';
+      el('hlBody').style.display = has ? 'block' : 'none';
+      if (!has) return;
+      list = h;
+      const key = h.highlight + '|' + h.matches.map(m => m.id).join(',');
+      if (key !== listKey){
+        listKey = key;
+        el('hlPick').innerHTML = h.matches.map(m => {
+          const res = m.result === 'win' ? 'W' : m.result === 'loss' ? 'L' : 'D';
+          const opp = m.kind === 'you' ? 'you' : m.opponent;
+          return `<option value="${esc(m.id)}">${m.id === h.highlight ? '★ ' : ''}${res} ${m.bot_goals}–${m.opp_goals} vs ${esc(opp)} · `
+               + `${m.kind === 'sim' ? 'sim' : 'real'} · ${new Date(m.time * 1000).toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'})}</option>`; }).join('');
+        (h.reels || []).forEach(r => { el('hlPick').insertAdjacentHTML('beforeend',
+          `<option value="${esc(r.id)}">Kickoff reel · ${typeof r.checkpoint === 'number' ? fmtM(r.checkpoint) : ''} · won ${r.won}/${r.n}</option>`); });
+        if (curId) el('hlPick').value = curId;
+      }
+      const known = id => h.matches.some(m => m.id === id) || (h.reels || []).some(r => r.id === id);
+      const want = userPicked && known(curId) ? curId : h.highlight;
+      if (want !== curId) open(want);
+      else if (tab === 'highlight' && cur && W !== cv.parentElement.clientWidth) resize();
+    }
+    function watch(id){
+      userPicked = true;
+      if (![...el('hlPick').options].some(o => o.value === id)){
+        const o = document.createElement('option'); o.value = id; o.textContent = 'Kickoff reel · ' + id.slice(0, 13); el('hlPick').appendChild(o);
+      }
+      open(id);
+    }
+    return { update, watch };
+  })();
+
+  function render(){
+    const d = DATA, s = d.summary, now = Date.now()/1000;
+    const M = range === 'all' ? d.metrics : d.metrics_recent;
+    const L = range === 'all' ? d.learning : d.learning_recent;
+
+    // status
+    const age = now - (s.heartbeat_time || d.generated_at);
+    const pubAge = now - d.generated_at;
+    const dot = document.getElementById('stDot');
+    let txt, cls;
+    if (pubAge > 1800){ txt = 'Stale: no update for ' + ago(pubAge).replace(' ago',''); cls = 'bad'; }
+    else if (!s.watchdog_running){ txt = 'Stopped'; cls = 'bad'; }
+    else if (age > 1200){ txt = 'Not responding'; cls = 'warn'; }
+    else { txt = 'Training'; cls = 'ok'; }
+    dot.className = 'dot ' + cls; setText('stText', txt);
+    setText('updated', '· published ' + ago(pubAge) + ' (' + d.generated_at_local + ' PC time)');
+
+    const r = s.recent;
+    document.getElementById('banner').innerHTML =
+      `<span>${fmtInt(s.timesteps)} learning steps</span><span class="sep">•</span>` +
+      `<span>${fmtInt(s.sps)} steps/sec</span><span class="sep">•</span>` +
+      `<span>${fx(r.goals_per_game_minute,2)} goals/min</span><span class="sep">•</span>` +
+      `<span>stage ${s.curriculum_stage != null ? s.curriculum_stage + 1 : '–'} of ${d.curriculum.length}</span>`;
+
+    // overview tiles
+    const entPct = s.recent_entropy != null ? Math.min(100, s.recent_entropy / s.max_entropy * 100) : 0;
+    const nextStage = s.curriculum_next ? `next stage at ${fmtM(s.curriculum_next)} (${fmtM(s.curriculum_next - s.timesteps)} to go)` : 'final stage';
+    document.getElementById('ovTiles').innerHTML = [
+      ['Learning steps', fmtM(s.timesteps), 'total since the start'],
+      ['Simulated play', fx(s.simulated_match_days,0) + ' days', 'of 1v1 match time'],
+      ['Training goals', fmtInt(s.total_goals_logged), 'scored in self-play games'],
+      ['Goals / min', fx(r.goals_per_game_minute,2), 'last ~10 min average'],
+      ['Randomness', fx(s.recent_entropy,2) + ' / 4.50', `<div class="bar"><i style="width:${entPct}%;background:var(--violet)"></i></div>`],
+      ['Curriculum', 'Stage ' + (s.curriculum_stage != null ? s.curriculum_stage + 1 : '–'), nextStage],
+    ].map(([k,v,h]) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="h">${h}</div></div>`).join('');
+
+    // headline values
+    setText('v-goals', fx(r.goals_per_game_minute,2));
+    setText('v-ent', fx(s.recent_entropy,3)); setText('v-ent2', fx(s.recent_entropy,3));
+    setText('v-touch', fx(r.touches_per_game_minute,1));
+    setText('v-sps', fmtInt(r.overall_sps));
+    setText('v-bspd', fmtInt(r.mean_ball_speed)); setText('v-cspd', fmtInt(r.mean_car_speed));
+    setText('v-air', fx(r.mean_in_air*100,0) + '%'); setText('v-bh', fmtInt(r.mean_ball_height));
+    setText('v-ch', fmtInt(r.mean_car_height)); setText('v-boost', fx(r.mean_boost,2));
+    const lastL = d.learning_recent[d.learning_recent.length-1] || {};
+    setText('v-prew', fx(lastL.policy_reward,0)); setText('v-vfl', fx(lastL.value_loss,4));
+    setText('v-kl', fx(lastL.kl,4)); setText('v-clip', fx(lastL.clip_fraction,3)); setText('v-csps', fmtInt(lastL.collected_sps));
+
+    const C = { amber: css('--amber'), violet: css('--violet'), green: css('--green'), accent: css('--accent'),
+                teal: css('--teal'), red: css('--red') };
+    if (tab === 'overview'){
+      lineChart('c-goals', M, 'goals_per_game_minute', C.amber, {min:0});
+      lineChart('c-ent', L, 'entropy', C.violet);
+      lineChart('c-touch', M, 'touches_per_game_minute', C.green, {min:0});
+      lineChart('c-sps', M, 'overall_sps', C.accent, {min:0});
+    } else if (tab === 'play'){
+      lineChart('c-bspd', M, 'mean_ball_speed', C.teal);
+      lineChart('c-cspd', M, 'mean_car_speed', C.accent);
+      lineChart('c-air', M, 'mean_in_air', C.violet, {min:0, scale:1});
+      lineChart('c-bh', M, 'mean_ball_height', C.amber);
+      lineChart('c-ch', M, 'mean_car_height', C.green);
+      lineChart('c-boost', M, 'mean_boost', C.red, {min:0});
+    } else if (tab === 'learning'){
+      lineChart('c-ent2', L, 'entropy', C.violet);
+      lineChart('c-prew', L, 'policy_reward', C.amber);
+      lineChart('c-vfl', L, 'value_loss', C.teal);
+      lineChart('c-kl', L, 'kl', C.accent);
+      lineChart('c-clip', L, 'clip_fraction', C.green);
+      lineChart('c-csps', L, 'collected_sps', C.red);
+    }
+
+    HL.update(d.highlights);
+
+    // tests
+    const ev = d.evaluation || [];
+    const byKind = k => ev.filter(r => r.opponent_kind === k && r.win_rate != null).sort((a,b) => a.ts - b.ts);
+    const marsh = byKind('MarshBot'), marsh879 = byKind('MarshBot 879M'), oldest = byKind('oldest kept version'), recent = byKind('~100M steps earlier');
+    const lastOf = a => a.length ? a[a.length-1] : null;
+    const pct = v => v == null ? '–' : Math.round(v*100) + '%';
+    setText('v-wr-marsh', pct(lastOf(marsh879) && lastOf(marsh879).win_rate));
+    setText('v-wr-old', pct(lastOf(oldest) && lastOf(oldest).win_rate));
+    const pool = d.opponent_pool;
+    document.getElementById('testTiles').innerHTML = [
+      ['vs MarshBot 879M', pct(lastOf(marsh879) && lastOf(marsh879).win_rate), lastOf(marsh879) ? `at ${fmtM(lastOf(marsh879).ts)} · W${lastOf(marsh879).wins} L${lastOf(marsh879).losses} D${lastOf(marsh879).draws}` : 'first test at the next checkpoint'],
+      ['vs oldest version', pct(lastOf(oldest) && lastOf(oldest).win_rate), lastOf(oldest) ? `${lastOf(oldest).opponent}` : 'no test yet'],
+      ['vs ~100M earlier', pct(lastOf(recent) && lastOf(recent).win_rate), lastOf(recent) ? `${lastOf(recent).opponent}` : 'no test yet'],
+      ['Tests run', fmtInt(ev.length), `${fmtInt(ev.reduce((s,r) => s + (r.games||0), 0))} simulated games`],
+      ['Opponent pool', pool ? pool.pool.length + ' versions' : 'off', pool ? `${pool.seats}/${pool.workers} workers vs old versions` : ''],
+    ].map(([k,v,h]) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="h">${h}</div></div>`).join('');
+    if (tab === 'tests'){
+      winChart('c-wr-marsh', [[marsh, css('--amber')], [marsh879, css('--red')]]);
+      winChart('c-wr-old', [[oldest, css('--violet')], [recent, css('--teal')]]);
+    }
+    if (tab === 'kickoffs'){
+      const kk = (d.kickoffs || []).slice().sort((a, b) => a.ts - b.ts);
+      const drill = (d.kickoff_drill || []).filter(r => r.touch != null);
+      lineChart('c-drill-t', drill, 'touch', css('--accent'), { win: 10 });
+      winChart('c-kick', [[kk.map(k => ({ ts: k.ts, win_rate: k.won })), css('--green')]]);
+      const tEl = document.getElementById('c-kick-t');
+      if (tEl){
+        const grid = css('--grid'), muted = css('--muted');
+        const pts = key => kk.filter(k => k[key] != null).map(k => ({ x: k.ts, y: k[key] }));
+        if (charts['c-kick-t']) charts['c-kick-t'].destroy();
+        charts['c-kick-t'] = new Chart(tEl, { type: 'line', data: { datasets: [
+            { data: pts('time_to_ball'), borderColor: css('--teal'), backgroundColor: css('--teal'), borderWidth: 2, pointRadius: 3, tension: .2 },
+            { data: pts('opp_time_to_ball'), borderColor: muted, backgroundColor: muted, borderWidth: 1.5, borderDash: [4, 4], pointRadius: 2, tension: .2 } ] },
+          options: { animation: false, responsive: true, maintainAspectRatio: false, parsing: false,
+            plugins: { legend: { display: false }, markers: { list: DATA.markers, color: muted },
+              tooltip: { callbacks: { title: it => fmtM(it[0].parsed.x) + ' steps', label: it => it.parsed.y.toFixed(2) + ' s' } } },
+            scales: { x: { type: 'linear', grid: { color: grid }, ticks: { color: muted, maxTicksLimit: 6, callback: v => fmtM(v) } },
+                      y: { grid: { color: grid }, ticks: { color: muted, callback: v => v.toFixed(1) + ' s' } } } },
+          plugins: [markerPlugin] });
+      }
+    }
+    {
+      const kk = (d.kickoffs || []).slice().sort((a, b) => a.ts - b.ts), last = kk[kk.length - 1];
+      setText('v-kick', last ? Math.round(last.won * 100) + '%' : '–');
+      setText('v-kick-t', last && last.time_to_ball != null ? last.time_to_ball.toFixed(2) + ' s' : '–');
+      const dr = (d.kickoff_drill || []).filter(r => r.touch != null), recentDr = dr.slice(-20);
+      const avg = (a, k) => a.length ? a.reduce((s, r) => s + r[k], 0) / a.length : null;
+      const dT = avg(recentDr, 'touch');
+      setText('v-drill-t', dT != null ? dT.toFixed(2) + ' s' : 'not started');
+      const firstDr = dr.slice(0, 20), dT0 = avg(firstDr, 'touch');
+      document.getElementById('kickTiles').innerHTML = [
+        ['Drill: time to first touch', dT != null ? dT.toFixed(2) + ' s' : '–', dT0 != null && dr.length > 40 ? `started at ${dT0.toFixed(2)} s` : 'last ~20 iterations'],
+        ['Drills per iteration', dr.length ? Math.round(avg(recentDr, 'drills')) : '–', dr.length ? `${Math.round(100 * avg(recentDr, 'timed_out') / Math.max(1, avg(recentDr, 'drills')))}% timed out` : ''],
+        ['Test: kickoffs won', last ? Math.round(last.won * 100) + '%' : '–', last ? `at ${fmtM(last.ts)} vs ${last.opponent || 'MarshBot'}` : ''],
+        ['Test: time to the ball', last && last.time_to_ball != null ? last.time_to_ball.toFixed(2) + ' s' : '–', 'physics best ≈ 2.1 s on average'],
+      ].map(([k,v,h]) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="h">${h}</div></div>`).join('');
+      const reels = (d.highlights && d.highlights.reels) || [];
+      document.getElementById('reelList').innerHTML = reels.length ? reels.map(r =>
+        `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">`
+        + `<div><b>${typeof r.checkpoint === 'number' ? fmtM(r.checkpoint) : r.checkpoint}</b> vs ${r.opponent} · won ${r.won}/${r.n} · avg ${r.mean_seconds != null ? r.mean_seconds.toFixed(2) + ' s' : '–'}`
+        + `<div class="n" style="color:var(--muted);font-size:12px">${new Date(r.time * 1000).toLocaleString()}</div></div>`
+        + `<button class="btn" data-reel="${r.id}" style="background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 12px;font:inherit;font-weight:600;cursor:pointer">▶ Watch</button></div>`
+      ).join('') : '<div class="desc">No kickoff reels yet: the first one is made at the next automatic test.</div>';
+      document.querySelectorAll('#reelList [data-reel]').forEach(b => b.onclick = () => { HL.watch(b.dataset.reel); setTab('highlight'); });
+    }
+    table('testTable', ev.slice(-15).reverse().map(r => [
+      fmtM(r.ts), r.opponent + (r.opponent_kind && r.opponent_kind !== 'MarshBot' ? ` <span class="pill">${r.opponent_kind}</span>` : ''),
+      `${r.wins}–${r.losses}–${r.draws}`, `<b>${pct(r.win_rate)}</b>`, new Date(r.time*1000).toLocaleString()
+    ]), ['Bot', 'Opponent', 'W–L–D', 'Win rate', 'Tested']);
+    const sch = d.schedule;
+    if (sch && sch.stages){
+      const badge = {applied:'var(--green)', skipped:'var(--muted)', waiting:'var(--amber)', planned:'var(--border)'};
+      const eta = at => (sch.ts && sch.sps && at > sch.ts) ? (h => h < 1 ? Math.round(h*60) + ' min' : h.toFixed(1) + ' h')((at - sch.ts) / sch.sps / 3600) : '';
+      table('schedTable', sch.stages.map(x => [
+        fmtM(x.applied_ts || x.at_ts), x.title,
+        `<span class="pill" style="border-color:${badge[x.status] || 'var(--border)'}">${x.status}</span>`,
+        x.status === 'planned' || x.status === 'waiting' ? eta(x.at_ts) : '', x.note || ''
+      ]), ['At', 'Change', 'Status', 'ETA', 'Notes']);
+    }
+    if (pool){
+      setText('poolDesc', `${pool.seats} of ${pool.workers} training games have one car driven by an older version (its moves are not trained on). Versions in the pool (current opponents highlighted):`);
+      const cur = new Set((pool.current_opponents || []).map(String));
+      document.getElementById('poolList').innerHTML = pool.pool.map(p =>
+        `<span class="pill" style="margin:2px;${cur.has(String(p)) ? 'border-color:var(--accent);color:var(--accent)' : ''}">${fmtM(p)}</span>`).join(' ');
+    } else {
+      setText('poolDesc', 'Opponent pool not active.');
+    }
+
+    // rewards
+    const explain = {
+      velocity_player_to_ball: 'Driving toward the ball', face_ball: 'Facing the ball', touch_ball: 'Touching the ball (per step)',
+      touch_aerial_weight: 'Bonus exponent for higher touches', touch_ball_hard: 'Hitting the ball hard',
+      velocity_ball_to_goal: 'Ball moving toward their goal', in_air: 'Being in the air',
+      team_goal: 'Scoring a goal', concede: 'Conceding a goal', demo: 'Demolishing the opponent',
+      boost_pickup: 'Picking up boost', save_boost: 'Keeping boost in the tank',
+    };
+    table('wTable', Object.entries(d.reward_weights).map(([k,v]) => [explain[k] || k, `<code>${k}</code>`, `<b>${v}</b>`]), ['What', 'Key', 'Weight']);
+    const stageNow = s.curriculum_stage;
+    setText('curDesc', 'Which start positions episodes use. The stage advances automatically with total steps.');
+    table('curTable', d.curriculum.map((c,i) => [
+      (i === stageNow ? '<span class="pill" style="border-color:var(--accent)">now</span> ' : '') + 'Stage ' + (i+1),
+      'from ' + fmtM(c.from_ts),
+      Object.entries(c.weights).map(([k,v]) => `${k} ${Math.round(v*100)}%`).join(' · ')
+    ]), ['Stage', 'Starts', 'Mix']);
+    document.getElementById('hist').innerHTML = d.reward_history.map(h =>
+      (h.title ? `<h4>${h.title}</h4>` : '') + h.lines.map(l => `<p>${l.replace(/</g,'&lt;')}</p>`).join('')).join('');
+
+    // system
+    const st = d.setup;
+    table('setupTable', [
+      ['Hardware', st.hardware], ['Software', st.stack], ['Simulation workers', st.workers],
+      ['Format', st.team_size + 'v' + st.team_size + ' self-play'], ['Decisions', '15 per second (tick skip ' + st.tick_skip + ')'],
+      ['Actions / observation', st.actions + ' discrete actions · ' + st.obs_size + ' inputs'],
+      ['Policy network', st.policy_layers.join(' × ')], ['Critic network', st.critic_layers.join(' × ')],
+      ['Data first logged', s.first_metrics_time || '–'],
+    ]);
+    table('ppoTable', Object.entries(d.ppo).map(([k,v]) => [k, typeof v === 'number' && Math.abs(v) >= 1 ? v.toLocaleString('en-US') : String(v)]));
+    table('ckTable', d.checkpoints.slice().reverse().map(c => [fmtInt(c.ts), c.saved, c.complete ? 'ok' : 'incomplete']), ['Steps', 'Saved (PC time)', '']);
+    setText('archNote', d.archived_runs.length ? 'Archived (rolled back / older runs): ' + d.archived_runs.join(', ') : '');
+    setText('wdLog', d.watchdog_log.join('\n'));
+    const ap = d.autopilot;
+    document.getElementById('apCard').style.display = ap && (ap.entries.length || ap.summary) ? 'block' : 'none';
+    if (ap){
+      const escA = t => t.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+      setText('apSummary', ap.summary || '');
+      document.getElementById('apList').innerHTML = ap.entries.map(e => {
+        const nl = e.indexOf('\n'), head = nl < 0 ? e : e.slice(0, nl), body = nl < 0 ? '' : e.slice(nl + 1);
+        return `<div style="padding:8px 0;border-bottom:1px solid var(--border)"><b>${escA(head)}</b>`
+             + `<div style="white-space:pre-wrap;color:var(--muted);font-size:13px">${escA(body)}</div></div>`;
+      }).join('');
+    }
+    const wl = document.getElementById('wdLog'); wl.scrollTop = wl.scrollHeight;
+  }
+
+  async function load(){
+    try{
+      const res = await fetch('data.json?t=' + Date.now(), {cache: 'no-store'});
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      DATA = await res.json();
+      document.getElementById('err').style.display = 'none';
+      render();
+    }catch(e){
+      const el = document.getElementById('err');
+      el.style.display = 'block';
+      el.textContent = 'Could not load data.json (' + e.message + '). It may still be publishing; retrying every minute.';
+    }
+  }
+  load();
+  setInterval(load, 60000);
+  setInterval(() => { if (DATA) render(); }, 30000);
+})();
+</script>
+</body>
+</html>
